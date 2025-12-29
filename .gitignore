@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+
+# 训练相关
+runs/*/
+logs/
+*.zip
+ppo_*
+wandb/
+videos/
+
+# 演示文件（保留）
+!demos/
+!demos/*.mp4
+!demos/*.gif
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyTorch
+*.pth
+*.pt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.log
+*.out
+
+# 配置文件（如果包含敏感信息）
+# config_local.py
+
+# 包构建
+rlgym2d.egg-info/

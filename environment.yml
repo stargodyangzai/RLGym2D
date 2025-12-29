@@ -1,0 +1,18 @@
+name: rlgym2d
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python>=3.8
+  - pip
+  - pip:
+    - gymnasium>=0.29.0
+    - stable-baselines3>=2.0.0
+    - torch>=1.13.0
+    - numpy>=1.21.0
+    - pymunk>=6.4.0
+    - pygame>=2.1.0
+    - matplotlib>=3.5.0
+    - wandb>=0.15.0
+    - tensorboard>=2.10.0
+    - tqdm>=4.64.0
