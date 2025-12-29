@@ -1,21 +1,26 @@
+# RLGym2D - 2D Reinforcement Learning Simulation Platform
 # RLGym2D - 2D强化学习仿真平台
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+**Languages | 语言**: [English](README_EN.md) | [中文](README.md)
+
 > **Your First Step into Reinforcement Learning**  
 > 强化学习的第一步 - 从2D到3D的桥梁
+
+A multi-task 2D reinforcement learning simulation platform that trains intelligent agents to complete various control tasks using PPO algorithm.
 
 一个支持多任务的2D强化学习仿真平台，使用PPO算法训练智能体完成各种控制任务。
 
 ## 🎬 **演示视频**
 
-| 任务 | 演示视频 | 描述 | 训练时间 |
+| 任务 | 演示视频 | 描述 | 训练难度 |
 |------|----------|------|----------|
-| **倒立摆** | ![CartPole](demos/cartpole_demo.mp4) | 控制小车保持摆杆平衡 | ~5分钟 |
-| **火柴人** | ![Walker](demos/walker_demo.mp4) | 协调四肢进行双足行走 | ~30分钟 |
-| **机械臂** | *待录制* | 精确到达目标点 | ~10分钟 |
+| **倒立摆** | ![CartPole](demos/cartpole_demo.mp4) | 控制小车保持摆杆平衡 | 简单 |
+| **火柴人** | ![Walker](demos/walker_demo.mp4) | 协调四肢进行双足行走 | 中等 |
+| **机械臂** | *待录制* | 精确到达目标点 | 中等 |
 
 > 💡 **录制自己的演示视频**: 
 > ```bash
@@ -279,7 +284,29 @@ python play.py --task new_task --model runs/new_task_xxx/model
 ```
 
 
-## 🤝 贡献
+## 📚 **向后兼容 | Backward Compatibility**
+
+RLGym2D maintains backward compatibility through legacy files in the `legacy/` directory.
+RLGym2D通过`legacy/`目录中的旧文件保持向后兼容。
+
+```python
+# ⚠️ Deprecated (but still works) | 已弃用（但仍可用）
+from legacy.simple_arm_env import SimpleArmEnv
+from legacy.reward_functions import RewardFunction
+
+# ✅ Modern API (recommended) | 现代API（推荐）
+from envs.arm import ArmEnv  
+from core.base_rewards import RewardFunction
+```
+
+**Migration Timeline | 迁移时间表**:
+- v1.0.0: Legacy files moved to `legacy/` | 旧文件移至`legacy/`
+- v2.0.0: Legacy files will be removed | 旧文件将被移除
+
+For migration help, see [`legacy/README.md`](legacy/README.md).
+迁移帮助请参考[`legacy/README.md`](legacy/README.md)。
+
+## 🤝 **贡献 | Contributing**
 
 欢迎贡献新任务、算法改进或bug修复！
 
