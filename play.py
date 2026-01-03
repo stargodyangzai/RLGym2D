@@ -4,6 +4,8 @@
 使用方式：
     python play.py --task arm --model runs/arm_20231219_120000/model
     python play.py --task walker --model runs/walker_20231219_120000/model
+    python play.py --task cartpole --model runs/cartpole_20231219_120000/model
+    python play.py --task double_pendulum --model runs/double_pendulum_20231219_120000/model
     python play.py --task walker --model runs/walker_20231219_120000/model --record  # 录制视频
 """
 import argparse

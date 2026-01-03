@@ -4,10 +4,22 @@
 支持的任务：
 - arm: 2D机械臂到达目标
 - walker: 2D火柴人行走
+- cartpole: 倒立摆平衡
+- double_pendulum: 二阶倒立摆平衡
 
 使用方式：
+    # 新训练
     python train.py --task arm --envs 32
     python train.py --task walker --envs 16
+    python train.py --task cartpole --envs 8
+    python train.py --task double_pendulum --envs 16
+    
+    # 继续训练
+    python train.py --task double_pendulum --continue-from runs/xxx/best_model/best_model.zip
+    python train.py --task double_pendulum --continue-from runs/xxx/best_model/best_model.zip --continue-iterations 200
+    
+    # 训练后立即演示
+    python train.py --task double_pendulum --envs 16 --play
 """
 import os
 import sys
@@ -223,9 +235,9 @@ class PerformanceCallback(BaseCallback):
                 try:
                     import wandb
                     if wandb.run is not None:
-                        wandb.run.summary['best_mean_reward'] = mean_reward
-                        wandb.run.summary['best_success_rate'] = success_rate
-                        wandb.run.summary['best_timestep'] = self.num_timesteps
+                        wandb.run.summary['best_mean_reward'] = float(mean_reward)  # 确保是Python float
+                        wandb.run.summary['best_success_rate'] = float(success_rate)  # 确保是Python float
+                        wandb.run.summary['best_timestep'] = int(self.num_timesteps)  # 确保是Python int
                 except:
                     pass
             
@@ -256,14 +268,19 @@ def make_env_fn(task, rank, seed=0):
         import warnings
         warnings.filterwarnings('ignore', category=UserWarning, module='pygame.pkgdata')
         
-        config = TASK_CONFIGS[task]['env_config']
+        # 合并env_config和reward_config
+        task_config = TASK_CONFIGS[task]
+        config = task_config['env_config'].copy()
+        if 'reward_config' in task_config:
+            config['reward_config'] = task_config['reward_config']
+        
         env = make_env(task, render_mode=None, config=config)
         env.reset(seed=seed + rank)
         return env
     return _init
 
 
-def train(task, n_envs=None, device=None):
+def train(task, n_envs=None, device=None, continue_from=None, continue_iterations=None):
     """训练模型"""
     if task not in TASK_CONFIGS:
         raise ValueError(f"Unknown task: {task}. Available: {list(TASK_CONFIGS.keys())}")
@@ -276,8 +293,14 @@ def train(task, n_envs=None, device=None):
         n_envs = train_cfg['n_envs']
     
     # 计算总步数
-    n_iterations = train_cfg['n_iterations']
-    total_timesteps = n_iterations * ppo_cfg['n_steps'] * n_envs
+    if continue_iterations is not None:
+        # 使用指定的继续训练迭代次数
+        n_iterations = continue_iterations
+        total_timesteps = n_iterations * ppo_cfg['n_steps'] * n_envs
+    else:
+        # 使用配置文件中的默认迭代次数
+        n_iterations = train_cfg['n_iterations']
+        total_timesteps = n_iterations * ppo_cfg['n_steps'] * n_envs
     
     print("=" * 70)
     print(f"训练任务: {task}")
@@ -322,7 +345,11 @@ def train(task, n_envs=None, device=None):
     env = SubprocVecEnv([make_env_fn(task, i) for i in range(n_envs)])
     
     # 创建评估环境
-    eval_env = make_env(task, render_mode=None, config=config['env_config'])
+    task_config = TASK_CONFIGS[task]
+    eval_config = task_config['env_config'].copy()
+    if 'reward_config' in task_config:
+        eval_config['reward_config'] = task_config['reward_config']
+    eval_env = make_env(task, render_mode=None, config=eval_config)
     
     # 保存配置
     config_save = {
@@ -344,22 +371,39 @@ def train(task, n_envs=None, device=None):
     with open(os.path.join(run_dir, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(config_save, f, indent=2, ensure_ascii=False)
     
-    # 创建模型
+    # 创建或加载模型
     tensorboard_log = os.path.join(run_dir, "tensorboard")
-    model = PPO(
-        'MlpPolicy',
-        env,
-        verbose=1,
-        learning_rate=ppo_cfg['learning_rate'],
-        n_steps=ppo_cfg['n_steps'],
-        batch_size=ppo_cfg['batch_size'],
-        n_epochs=ppo_cfg['n_epochs'],
-        gamma=ppo_cfg['gamma'],
-        ent_coef=ppo_cfg['ent_coef'],
-        policy_kwargs={'net_arch': config['network_config']['net_arch']},
-        tensorboard_log=tensorboard_log,
-        device=device
-    )
+    
+    if continue_from is not None:
+        # 继续训练：加载已有模型
+        if not os.path.exists(continue_from):
+            raise FileNotFoundError(f"模型文件不存在: {continue_from}")
+        
+        print(f"🔄 从已有模型继续训练: {continue_from}")
+        model = PPO.load(continue_from, env=env, device=device)
+        
+        # 更新tensorboard日志路径
+        model.tensorboard_log = tensorboard_log
+        
+        print(f"✅ 模型加载成功，将继续训练 {n_iterations} 次迭代 ({total_timesteps:,} 步)")
+        
+    else:
+        # 新训练：创建新模型
+        print(f"🆕 创建新模型，开始训练 {n_iterations} 次迭代 ({total_timesteps:,} 步)")
+        model = PPO(
+            'MlpPolicy',
+            env,
+            verbose=1,
+            learning_rate=ppo_cfg['learning_rate'],
+            n_steps=ppo_cfg['n_steps'],
+            batch_size=ppo_cfg['batch_size'],
+            n_epochs=ppo_cfg['n_epochs'],
+            gamma=ppo_cfg['gamma'],
+            ent_coef=ppo_cfg['ent_coef'],
+            policy_kwargs={'net_arch': config['network_config']['net_arch']},
+            tensorboard_log=tensorboard_log,
+            device=device
+        )
     
     # 创建保存目录
     best_model_dir = os.path.join(run_dir, "best_model")
@@ -398,7 +442,7 @@ def train(task, n_envs=None, device=None):
         'run_name': run_name,
         'task': task,
         'total_timesteps': total_timesteps,
-        'best_reward': performance_callback.best_mean_reward,
+        'best_reward': float(performance_callback.best_mean_reward),  # 转换为Python float
         'checkpoint_count': performance_callback.checkpoint_count,
     }
     with open(os.path.join(run_dir, 'summary.json'), 'w', encoding='utf-8') as f:
@@ -445,9 +489,26 @@ if __name__ == "__main__":
                        help='训练设备')
     parser.add_argument('--play', action='store_true',
                        help='训练后立即演示')
+    parser.add_argument('--continue-from', type=str, default=None,
+                       help='从指定模型继续训练 (模型路径，如: runs/xxx/best_model/best_model.zip)')
+    parser.add_argument('--continue-iterations', type=int, default=None,
+                       help='继续训练的迭代次数 (默认使用配置文件中的设置)')
     
     args = parser.parse_args()
-    model, run_dir = train(args.task, args.envs, args.device)
+    
+    # 验证继续训练参数
+    if args.continue_from is not None:
+        if not os.path.exists(args.continue_from):
+            print(f"❌ 错误: 模型文件不存在: {args.continue_from}")
+            sys.exit(1)
+        print(f"🔄 继续训练模式")
+        print(f"   模型路径: {args.continue_from}")
+        if args.continue_iterations:
+            print(f"   训练迭代: {args.continue_iterations} 次")
+        else:
+            print(f"   训练迭代: 使用配置文件默认值")
+    
+    model, run_dir = train(args.task, args.envs, args.device, args.continue_from, args.continue_iterations)
     
     if args.play:
         print("\n启动演示...")
